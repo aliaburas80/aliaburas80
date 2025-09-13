@@ -43,3 +43,6 @@ Creative: Photography, SEO for Stock Images, Visual Storytelling
 
 [💼 LinkedIn](https://www.linkedin.com/in/aliaburas80/)
 
+
+Agile Scrum Master, Software Engineer, Cross-Platform Developer, React, Next.js, Tailwind, JavaScript, Python, Data Science, Algorithms, Mobile Development, ActionScript 3.0, Photography, Architecture Photographer, Lifestyle Photographer.
+
