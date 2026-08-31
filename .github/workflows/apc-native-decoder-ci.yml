@@ -1,0 +1,39 @@
+name: APC Native Decoder macOS CI
+
+on:
+  push:
+    branches: [apc-native-decoder-ci]
+  workflow_dispatch:
+
+jobs:
+  macos-decoder-stress:
+    runs-on: macos-14
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show Xcode and Swift versions
+        run: |
+          xcodebuild -version
+          xcrun swiftc --version
+      - name: Compile Swift 6 isolated decoder harness
+        run: |
+          mkdir -p .build
+          xcrun swiftc -O -swift-version 6 \
+            apc-decoder-ci/main.swift \
+            -framework ImageIO -framework CoreGraphics \
+            -o .build/apc-decoder-ci
+      - name: Run repeated large-image, malformed-image, and SIGTRAP containment tests
+        run: |
+          set -euo pipefail
+          ./.build/apc-decoder-ci --runtime-self-test
+      - name: Record memory footprint
+        run: |
+          /usr/bin/time -l ./.build/apc-decoder-ci --runtime-self-test 2> memory.txt
+          cat memory.txt
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apc-native-decoder-macos-diagnostics
+          path: memory.txt
+          if-no-files-found: ignore
