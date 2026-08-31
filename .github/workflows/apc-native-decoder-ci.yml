@@ -1,4 +1,4 @@
-name: APC Native Decoder macOS CI
+name: APC Native macOS Safety CI
 
 on:
   push:
@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  macos-decoder-stress:
+  native-safety-stress:
     runs-on: macos-15
-    timeout-minutes: 20
+    timeout-minutes: 25
     permissions:
       contents: read
     steps:
@@ -27,35 +27,39 @@ jobs:
             apc-decoder-exact/main.swift \
             -framework ImageIO -framework CoreGraphics \
             -o .build/apc-decoder-exact
-      - name: Run exact v1.1 runtime self-test
+      - name: Run exact v1.1 decoder self-test
         run: |
           set -euo pipefail
           ./.build/apc-decoder-exact --runtime-self-test
-      - name: Repeat exact self-test and record memory footprint
+      - name: Stress ten fresh decoder parents (100 large decodes total)
+        run: |
+          set -euo pipefail
+          for batch in {1..10}; do
+            echo "decoder batch $batch/10"
+            ./.build/apc-decoder-exact --runtime-self-test
+          done
+      - name: Measure exact decoder memory footprint
         run: |
           set -euo pipefail
           /usr/bin/time -l ./.build/apc-decoder-exact --runtime-self-test 2> exact-memory.txt
           cat exact-memory.txt
-      - name: Probe private app repository access without exposing token
-        id: private_probe
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
+      - name: Compile Apple Vision safety-profile stress harness
         run: |
-          set +e
-          GIT_TERMINAL_PROMPT=0 git -c http.extraHeader="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64)" \
-            ls-remote https://github.com/aliaburas80/main.git refs/heads/ali-photo-curator-native-v1.1.0-ci >/dev/null 2>&1
-          status=$?
-          if [ "$status" -eq 0 ]; then
-            echo "PRIVATE_REPO_ACCESS=YES"
-          else
-            echo "PRIVATE_REPO_ACCESS=NO"
-          fi
-          exit 0
-      - name: Upload exact decoder diagnostics
+          xcrun swiftc -O -swift-version 6 \
+            apc-vision-ci/main.swift \
+            -framework Vision -framework CoreGraphics \
+            -o .build/apc-vision-stress
+      - name: Stress Apple Vision classification, saliency, and faces
+        run: |
+          set -euo pipefail
+          /usr/bin/time -l ./.build/apc-vision-stress 2> vision-memory.txt
+          cat vision-memory.txt
+      - name: Upload native safety diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: apc-v1.1-exact-decoder-macos-diagnostics
-          path: exact-memory.txt
+          name: apc-v1.1-native-safety-diagnostics
+          path: |
+            exact-memory.txt
+            vision-memory.txt
           if-no-files-found: ignore
