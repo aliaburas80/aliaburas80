@@ -8,7 +8,7 @@ on:
 jobs:
   native-safety-stress:
     runs-on: macos-26
-    timeout-minutes: 25
+    timeout-minutes: 30
     permissions:
       contents: read
     steps:
@@ -44,6 +44,42 @@ jobs:
           set -euo pipefail
           /usr/bin/time -l ./.build/apc-decoder-exact --runtime-self-test 2> exact-memory.txt
           cat exact-memory.txt
+      - name: Compile 85MP high-entropy JPEG generator
+        run: |
+          xcrun swiftc -O -swift-version 6 \
+            apc-large-ci/make_large.swift \
+            -framework ImageIO -framework CoreGraphics \
+            -o .build/make-large
+      - name: Generate 10667x8000 stress JPEG
+        run: |
+          set -euo pipefail
+          /usr/bin/time -l ./.build/make-large "$RUNNER_TEMP/apc-85mp.jpg" 2> generator-memory.txt | tee giant-image.txt
+          ls -lh "$RUNNER_TEMP/apc-85mp.jpg"
+          cat generator-memory.txt
+      - name: Decode 85MP stress JPEG through exact child helper
+        run: |
+          set -euo pipefail
+          for pass in 1 2 3; do
+            rm -f "$RUNNER_TEMP/giant-$pass.apcrgba"
+            /usr/bin/time -l ./.build/apc-decoder-exact \
+              --decode-helper \
+              --input "$RUNNER_TEMP/apc-85mp.jpg" \
+              --output "$RUNNER_TEMP/giant-$pass.apcrgba" \
+              --max 1800 2> "giant-decode-$pass-memory.txt"
+            python3 - "$RUNNER_TEMP/giant-$pass.apcrgba" <<'PY'
+import struct, sys
+p=sys.argv[1]
+with open(p,'rb') as f:
+    head=f.read(16)
+if len(head)!=16 or head[:4]!=b'APCR':
+    raise SystemExit('invalid APCR header')
+w,h,row=struct.unpack('<III',head[4:16])
+if max(w,h)>1800 or row != w*4:
+    raise SystemExit(f'invalid bounded dimensions: {w}x{h}, row={row}')
+print(f'85MP decode bounded successfully: {w}x{h}')
+PY
+            cat "giant-decode-$pass-memory.txt"
+          done
       - name: Compile Apple Vision safety-profile stress harness
         run: |
           xcrun swiftc -O -swift-version 6 \
@@ -62,5 +98,8 @@ jobs:
           name: apc-v1.1-macos26-native-safety-diagnostics
           path: |
             exact-memory.txt
+            generator-memory.txt
+            giant-image.txt
+            giant-decode-*-memory.txt
             vision-memory.txt
           if-no-files-found: ignore
