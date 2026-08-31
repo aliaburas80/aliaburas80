@@ -9,6 +9,8 @@ jobs:
   macos-decoder-stress:
     runs-on: macos-15
     timeout-minutes: 20
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - name: Show Xcode and Swift versions
@@ -34,6 +36,22 @@ jobs:
           set -euo pipefail
           /usr/bin/time -l ./.build/apc-decoder-exact --runtime-self-test 2> exact-memory.txt
           cat exact-memory.txt
+      - name: Probe private app repository access without exposing token
+        id: private_probe
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set +e
+          GIT_TERMINAL_PROMPT=0 git -c http.extraHeader="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64)" \
+            ls-remote https://github.com/aliaburas80/main.git refs/heads/ali-photo-curator-native-v1.1.0-ci >/dev/null 2>&1
+          status=$?
+          if [ "$status" -eq 0 ]; then
+            echo "PRIVATE_REPO_ACCESS=YES"
+          else
+            echo "PRIVATE_REPO_ACCESS=NO"
+          fi
+          exit 0
       - name: Upload exact decoder diagnostics
         if: always()
         uses: actions/upload-artifact@v4
