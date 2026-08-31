@@ -7,7 +7,7 @@ on:
 
 jobs:
   macos-decoder-stress:
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -15,6 +15,9 @@ jobs:
         run: |
           xcodebuild -version
           xcrun swiftc --version
+      - name: Verify Swift 6 is available
+        run: |
+          xcrun swiftc -swift-version 6 -version
       - name: Compile Swift 6 isolated decoder harness
         run: |
           mkdir -p .build
