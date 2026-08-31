@@ -1,4 +1,4 @@
-name: APC Native macOS Safety CI
+name: APC Native macOS 26 Safety CI
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   native-safety-stress:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 25
     permissions:
       contents: read
@@ -15,6 +15,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Show Xcode and Swift versions
         run: |
+          sw_vers
           xcodebuild -version
           xcrun swiftc --version
       - name: Verify Swift 6 is available
@@ -58,7 +59,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: apc-v1.1-native-safety-diagnostics
+          name: apc-v1.1-macos26-native-safety-diagnostics
           path: |
             exact-memory.txt
             vision-memory.txt
