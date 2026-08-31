@@ -16,27 +16,28 @@ jobs:
           xcodebuild -version
           xcrun swiftc --version
       - name: Verify Swift 6 is available
-        run: |
-          xcrun swiftc -swift-version 6 -version
-      - name: Compile Swift 6 isolated decoder harness
+        run: xcrun swiftc -swift-version 6 -version
+      - name: Compile exact v1.1 isolated decoder source
         run: |
           mkdir -p .build
           xcrun swiftc -O -swift-version 6 \
-            apc-decoder-ci/main.swift \
+            apc-decoder-exact/ImageDownsampler.swift \
+            apc-decoder-exact/main.swift \
             -framework ImageIO -framework CoreGraphics \
-            -o .build/apc-decoder-ci
-      - name: Run repeated large-image, malformed-image, and SIGTRAP containment tests
+            -o .build/apc-decoder-exact
+      - name: Run exact v1.1 runtime self-test
         run: |
           set -euo pipefail
-          ./.build/apc-decoder-ci --runtime-self-test
-      - name: Record memory footprint
+          ./.build/apc-decoder-exact --runtime-self-test
+      - name: Repeat exact self-test and record memory footprint
         run: |
-          /usr/bin/time -l ./.build/apc-decoder-ci --runtime-self-test 2> memory.txt
-          cat memory.txt
-      - name: Upload diagnostics
+          set -euo pipefail
+          /usr/bin/time -l ./.build/apc-decoder-exact --runtime-self-test 2> exact-memory.txt
+          cat exact-memory.txt
+      - name: Upload exact decoder diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: apc-native-decoder-macos-diagnostics
-          path: memory.txt
+          name: apc-v1.1-exact-decoder-macos-diagnostics
+          path: exact-memory.txt
           if-no-files-found: ignore
